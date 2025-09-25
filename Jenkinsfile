@@ -2,44 +2,57 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'myapp:latest'
-        CONTAINER_NAME = 'myapp-container'
-        HOST_PORT = '8081'
-        CONTAINER_PORT = '80'
+        DOCKER_IMAGE = "myapp:latest"
+        REGISTRY = "your-dockerhub-username/myapp"  // Change this if pushing to Docker Hub
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                echo 'Checking out code from GitHub...'
+                echo "Checking out code from GitHub..."
                 git branch: 'main', url: 'https://github.com/GayathriGit742/Jenkins-pipeline-for-cicd.git'
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Building the Docker image...'
-                // Use 'bat' because host is Windows
-                bat "docker build -t %IMAGE_NAME% ."
+                echo "Building the Docker image..."
+                sh 'docker build -t $DOCKER_IMAGE .'
             }
         }
 
         stage('Test') {
             steps {
-                echo 'Running container for testing...'
-                // Stop/remove previous container if exists
-                bat "docker rm -f %CONTAINER_NAME% || exit 0"
-                // Run container
-                bat "docker run -d -p %HOST_PORT%:%CONTAINER_PORT% --name %CONTAINER_NAME% %IMAGE_NAME%"
+                echo "Running tests..."
+                // Example: run a container and check if it starts
+                sh '''
+                docker run --name myapp_test -d $DOCKER_IMAGE
+                docker ps -a
+                docker stop myapp_test
+                docker rm myapp_test
+                '''
             }
         }
 
         stage('Deploy') {
             steps {
-                echo 'Application deployed successfully!'
-                echo "Open your browser at http://localhost:%HOST_PORT%"
+                echo "Deploying Docker image..."
+                // Example: push to Docker Hub (make sure to login via Jenkins credentials)
+                sh '''
+                docker tag $DOCKER_IMAGE $REGISTRY:latest
+                docker push $REGISTRY:latest
+                '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully!"
+        }
+        failure {
+            echo "Pipeline failed. Check the logs!"
         }
     }
 }
